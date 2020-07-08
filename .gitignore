@@ -1,0 +1,4 @@
+Debug/
+MPI_Debug/
+Release/
+*.vcxproj*
