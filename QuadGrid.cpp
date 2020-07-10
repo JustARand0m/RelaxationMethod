@@ -29,7 +29,7 @@ int QuadGrid::start(int edgeCase) {
 			if (world_rank == MASTER_NODE) {
 				start = std::chrono::system_clock::now();
 			}
-			partitionMPI();
+			partitionMPIScatter();
 			if (world_rank == MASTER_NODE) {
 				auto end = std::chrono::system_clock::now();
 				timeTaken = (long long)(end - start).count();
@@ -72,24 +72,17 @@ void QuadGrid::partitionMPI() {
 
 	// master that partitions data and sends to slave processes
 	if (world_rank == MASTER_NODE) {
+		std::cout << "starting ..." << std::endl;
 		while (true) {
 			double r = std::numeric_limits<double>::min();
-			MPI_Request *requests_send = new MPI_Request[size];
-			MPI_Status *statuses_send = new MPI_Status[size];
 
 			// send submatrices to all slaves
 			for (int i = 1; i < world_size; i++) {
 				int startRow, endRow;
 				startEndRows(startRow, endRow, rows, i);
 				Matrix subMatrix = matrix.getSubMatrix(startRow, endRow);
-				MPI_Isend(subMatrix.getData(), subMatrix.size(), MPI_DOUBLE, i, MATRIX_BEFORE_CALC_TAG, MPI_COMM_WORLD, &requests_send[i - 1]);
+				MPI_Send(subMatrix.getData(), subMatrix.size(), MPI_DOUBLE, i, MATRIX_BEFORE_CALC_TAG, MPI_COMM_WORLD);
 			}
-
-			// wait until all messages are sent to all slaves
-			MPI_Waitall(size, requests_send, statuses_send);
-
-			delete[] requests_send;
-			delete[] statuses_send;
 
 			// receive the results form the slaves
 			std::vector<Matrix> subMatrices;
@@ -112,8 +105,6 @@ void QuadGrid::partitionMPI() {
 				matrix.insertSubmatrix(importantContent, startRow + 1);
 				r = std::max(r, residuums[i - 1]);
 			}
-
-			// check if r reached the limit
 			if (r <= limit && r != std::numeric_limits<double>::min()) {
 				//matrix.printMatrix();
 				return;
@@ -132,7 +123,6 @@ void QuadGrid::partitionMPI() {
 
 			//wait for Master to send submatrix
 			MPI_Recv(subMatrix.getData(), subMatrix.size(), MPI_DOUBLE, MASTER_NODE, MATRIX_BEFORE_CALC_TAG, MPI_COMM_WORLD, &status);
-
 			int start = 1, end = endRow - startRow - 1;
 
 			double rNew = calcualteCell(start, end, subMatrix);
@@ -144,6 +134,93 @@ void QuadGrid::partitionMPI() {
 		}
 	}
 }
+
+
+void QuadGrid::partitionMPIScatter() {
+	int rows = dim / world_size;
+	rows = rows <= 0 ? 1 : rows;
+	int startRow, endRow;
+	startEndRowsScatter(startRow, endRow, rows, world_rank);
+
+	std::vector<int> sendCounts = calculateSendCounts(rows);
+	std::vector<int> sendDispls = calculateSendDispls(rows);
+	std::vector<int> recvCounts = calculateRecvCounts(rows);
+	std::vector<int> recvDispls = calculateRecvDispls(rows);
+	std::vector<double> rValues(world_size);
+
+	int start = 1, end = endRow - startRow - 1;
+
+	while (true) {
+		Matrix subMatrix = matrix.getSubMatrix(startRow, endRow);
+
+		// send the partitioned matrix to all processes
+		MPI_Scatterv(matrix.getData(), sendCounts.data(), sendDispls.data(), MPI_DOUBLE, subMatrix.getData(), sendCounts[world_rank], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+		double r = calcualteCell(start, end, subMatrix);
+
+		double *matrixStart = subMatrix.getData() + dim;
+		matrixStart = world_rank == 0 ? subMatrix.getData() : subMatrix.getData() + dim;
+		int matrixSize = subMatrix.size() - (2 * dim);
+		matrixSize = world_rank == 0 || world_rank == world_size - 1 ? subMatrix.size() - dim : subMatrix.size() - (2 * dim);
+
+		// get the submatrices and merge them into the old matrix, also get all calcualted r values
+		MPI_Gatherv(matrixStart, matrixSize, MPI_DOUBLE, matrix.getData(), recvCounts.data(), recvDispls.data(), MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+		MPI_Gather(&r, 1, MPI_DOUBLE, rValues.data(), 1, MPI_DOUBLE, MASTER_NODE, MPI_COMM_WORLD);
+
+		// search the max out of all r values
+		double rMax = std::numeric_limits<double>::min();
+
+		if (world_rank == 0 && r <= limit && r != std::numeric_limits<double>::min()) {
+			//matrix.printMatrix();
+			break;
+		}
+	}
+}
+
+
+std::vector<int> QuadGrid::calculateSendCounts(int rows) {
+	std::vector<int> buffer(world_size);
+	int startRow, endRow;
+
+	for (int i = 0; i < world_size; i++) {
+		startEndRowsScatter(startRow, endRow, rows, i);
+		buffer[i] = (endRow - startRow + 1) * dim;
+	}
+	return buffer;
+}
+
+
+std::vector<int> QuadGrid::calculateSendDispls(int rows) {
+	std::vector<int> buffer(world_size);
+	int startRow, endRow;
+	for (int i = 0; i < world_size; i++) {
+		startEndRowsScatter(startRow, endRow, rows, i);
+		buffer[i] = dim * startRow;
+	}
+	return buffer;
+}
+
+std::vector<int> QuadGrid::calculateRecvCounts(int rows) {
+	std::vector<int> buffer(world_size);
+	int startRow, endRow;
+
+	for (int i = 0; i < world_size; i++) {
+		startEndRowsGather(startRow, endRow, rows, i);
+		buffer[i] = (endRow - startRow + 1) * dim;
+	}
+	return buffer;
+}
+
+std::vector<int> QuadGrid::calculateRecvDispls(int rows) {
+	std::vector<int> buffer(world_size);
+	int startRow, endRow;
+	for (int i = 0; i < world_size; i++) {
+		startEndRowsGather(startRow, endRow, rows, i);
+		buffer[i] = dim * startRow;
+	}
+	return buffer;
+}
+
 
 void QuadGrid::initMPI(int argc, char **argv) {
 	if (init == false) {
@@ -188,6 +265,37 @@ void QuadGrid::startEndRows(int &startRow, int &endRow, int rows, int _world_ran
 		startRow = 0;
 	}
 	endRow = (_world_rank * rows);
+	if (endRow >= dim) {
+		endRow = dim - 1;
+	}
+	// if uneven numbers the last process rows until the end
+	if (_world_rank == world_size - 1) {
+		endRow = dim - 1;
+	}
+}
+
+void QuadGrid::startEndRowsScatter(int &startRow, int &endRow, int rows, int _world_rank) {
+	startRow = ((_world_rank) * rows) - 1;
+	if (startRow < 0) {
+		startRow = 0;
+	}
+	endRow = ((_world_rank + 1) * rows);
+	if (endRow >= dim) {
+		endRow = dim - 1;
+	}
+	// if uneven numbers the last process rows until the end
+	if (_world_rank == world_size - 1) {
+		endRow = dim - 1;
+	}
+}
+
+
+void QuadGrid::startEndRowsGather(int &startRow, int &endRow, int rows, int _world_rank) {
+	startRow = ((_world_rank) * rows);
+	if (startRow < 0) {
+		startRow = 0;
+	}
+	endRow = ((_world_rank + 1) * rows) - 1;
 	if (endRow >= dim) {
 		endRow = dim - 1;
 	}

@@ -35,9 +35,16 @@ private:
 	Matrix matrix;
 
 	void partitionMPI();
+	void partitionMPIScatter();
+	std::vector<int> calculateSendCounts(int rows);
+	std::vector<int> calculateSendDispls(int rows);
+	std::vector<int> calculateRecvCounts(int rows);
+	std::vector<int> calculateRecvDispls(int rows);
 	double faultFunction(int row, int col, Matrix &matrix);
 	double residuum(int row, int col, Matrix &matrix);
 	double calcualteCell(int startRow, int lastRow, Matrix &_matrix, MPI_Request* request = NULL);
 	void startEndRows(int &startRow, int &endRow, int rows, int _world_rank);
+	void startEndRowsScatter(int &startRow, int &endRow, int rows, int _world_rank);
+	void startEndRowsGather(int &startRow, int &endRow, int rows, int _world_rank);
 };
 
