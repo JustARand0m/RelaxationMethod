@@ -20,14 +20,14 @@ const int RESIDUUM_TAG = 2;
 #define SCATTER 1 
 #define SEND_RECV 2
 
-class QuadGrid
+class RelaxationMethod
 {
 public:
-	QuadGrid(int n, double limit);
-	int start(int edgeCase, int method = 0);
+	RelaxationMethod(int n, double limit);
+	long long start(int edgeCase, int method = 0);
 	void initMPI(int argc, char **argv);
 	void writeToCSV(std::string name, long long time);
-	~QuadGrid();
+	~RelaxationMethod();
 
 private:
 	int world_size;
@@ -46,7 +46,7 @@ private:
 	std::vector<int> calculateRecvDispls(int rows);
 	double faultFunction(int row, int col, Matrix &matrix);
 	double residuum(int row, int col, Matrix &matrix);
-	double calcualteCell(int startRow, int lastRow, Matrix &_matrix, MPI_Request* request = NULL);
+	double calcualteCell(int startRow, int lastRow, Matrix &_matrix);
 	void startEndRows(int &startRow, int &endRow, int rows, int _world_rank);
 	void startEndRowsScatter(int &startRow, int &endRow, int rows, int _world_rank);
 	void startEndRowsGather(int &startRow, int &endRow, int rows, int _world_rank);

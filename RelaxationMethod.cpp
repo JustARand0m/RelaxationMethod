@@ -1,13 +1,13 @@
-#include "QuadGrid.h"
+#include "RelaxationMethod.h"
 
-QuadGrid::QuadGrid(int n, double _limit): dim(n+1), matrix(dim, dim) {
+RelaxationMethod::RelaxationMethod(int n, double _limit): dim(n+1), matrix(dim, dim) {
 	world_rank = -1;
 	world_size = -1;
 	distance = 1.0 / n;
 	limit = _limit;
 }
 
-int QuadGrid::start(int edgeCase, int method) {
+long long RelaxationMethod::start(int edgeCase, int method) {
 	long long timeTaken = -1;
 	double r = 0;
 	Matrix m(5, 5);
@@ -52,7 +52,7 @@ int QuadGrid::start(int edgeCase, int method) {
 		else {
 			auto start = std::chrono::system_clock::now();
 			do {
-				r = calcualteCell(1, dim - 2, matrix, NULL);
+				r = calcualteCell(1, dim - 2, matrix);
 			} while (r >= limit);
 
 			auto end = std::chrono::system_clock::now();
@@ -65,8 +65,7 @@ int QuadGrid::start(int edgeCase, int method) {
 	return timeTaken;
 }
 
-double QuadGrid::calcualteCell(int startRow, int lastRow, Matrix &_matrix, MPI_Request* request) {
-	MPI_Status status;
+double RelaxationMethod::calcualteCell(int startRow, int lastRow, Matrix &_matrix) {
 	double r = std::numeric_limits<double>::min();
 
 	for (int row = startRow; row <= lastRow; row++) {
@@ -79,7 +78,7 @@ double QuadGrid::calcualteCell(int startRow, int lastRow, Matrix &_matrix, MPI_R
 	return r;
 }
 
-void QuadGrid::partitionMPI() {
+void RelaxationMethod::partitionMPI() {
 	int size = world_size - 1;
 	int rows = dim / (size);
 	rows = rows <= 0 ? 1 : rows;
@@ -150,7 +149,7 @@ void QuadGrid::partitionMPI() {
 }
 
 
-void QuadGrid::partitionMPIScatter() {
+void RelaxationMethod::partitionMPIScatter() {
 	int rows = dim / world_size;
 	rows = rows <= 0 ? 1 : rows;
 	int startRow, endRow;
@@ -198,7 +197,7 @@ void QuadGrid::partitionMPIScatter() {
 }
 
 
-std::vector<int> QuadGrid::calculateSendCounts(int rows) {
+std::vector<int> RelaxationMethod::calculateSendCounts(int rows) {
 	std::vector<int> buffer(world_size);
 	int startRow, endRow;
 
@@ -210,7 +209,7 @@ std::vector<int> QuadGrid::calculateSendCounts(int rows) {
 }
 
 
-std::vector<int> QuadGrid::calculateSendDispls(int rows) {
+std::vector<int> RelaxationMethod::calculateSendDispls(int rows) {
 	std::vector<int> buffer(world_size);
 	int startRow, endRow;
 	for (int i = 0; i < world_size; i++) {
@@ -220,7 +219,7 @@ std::vector<int> QuadGrid::calculateSendDispls(int rows) {
 	return buffer;
 }
 
-std::vector<int> QuadGrid::calculateRecvCounts(int rows) {
+std::vector<int> RelaxationMethod::calculateRecvCounts(int rows) {
 	std::vector<int> buffer(world_size);
 	int startRow, endRow;
 
@@ -231,7 +230,7 @@ std::vector<int> QuadGrid::calculateRecvCounts(int rows) {
 	return buffer;
 }
 
-std::vector<int> QuadGrid::calculateRecvDispls(int rows) {
+std::vector<int> RelaxationMethod::calculateRecvDispls(int rows) {
 	std::vector<int> buffer(world_size);
 	int startRow, endRow;
 	for (int i = 0; i < world_size; i++) {
@@ -242,7 +241,7 @@ std::vector<int> QuadGrid::calculateRecvDispls(int rows) {
 }
 
 
-void QuadGrid::initMPI(int argc, char **argv) {
+void RelaxationMethod::initMPI(int argc, char **argv) {
 	if (init == false) {
 		MPI_Init(&argc, &argv);
 		MPI_Comm_size(MPI_COMM_WORLD, &world_size);
@@ -251,7 +250,7 @@ void QuadGrid::initMPI(int argc, char **argv) {
 	init = true;
 }
 
-QuadGrid::~QuadGrid()
+RelaxationMethod::~RelaxationMethod()
 {
 	if (init) {
 		MPI_Abort(MPI_COMM_WORLD, 0);
@@ -260,7 +259,7 @@ QuadGrid::~QuadGrid()
 }
 
 
-void QuadGrid::writeToCSV(std::string name, long long time) {
+void RelaxationMethod::writeToCSV(std::string name, long long time) {
 	std::ofstream csvFile;
 	csvFile.open(name + ".csv");
 	if (init) {
@@ -279,7 +278,7 @@ void QuadGrid::writeToCSV(std::string name, long long time) {
 }
 
 
-void QuadGrid::startEndRows(int &startRow, int &endRow, int rows, int _world_rank) {
+void RelaxationMethod::startEndRows(int &startRow, int &endRow, int rows, int _world_rank) {
 	startRow = ((_world_rank - 1) * rows) - 1;
 	if (startRow < 0) {
 		startRow = 0;
@@ -294,7 +293,7 @@ void QuadGrid::startEndRows(int &startRow, int &endRow, int rows, int _world_ran
 	}
 }
 
-void QuadGrid::startEndRowsScatter(int &startRow, int &endRow, int rows, int _world_rank) {
+void RelaxationMethod::startEndRowsScatter(int &startRow, int &endRow, int rows, int _world_rank) {
 	startRow = ((_world_rank) * rows) - 1;
 	if (startRow < 0) {
 		startRow = 0;
@@ -310,7 +309,7 @@ void QuadGrid::startEndRowsScatter(int &startRow, int &endRow, int rows, int _wo
 }
 
 
-void QuadGrid::startEndRowsGather(int &startRow, int &endRow, int rows, int _world_rank) {
+void RelaxationMethod::startEndRowsGather(int &startRow, int &endRow, int rows, int _world_rank) {
 	startRow = ((_world_rank) * rows);
 	if (startRow < 0) {
 		startRow = 0;
@@ -325,10 +324,10 @@ void QuadGrid::startEndRowsGather(int &startRow, int &endRow, int rows, int _wor
 	}
 }
 
-double QuadGrid::faultFunction(int row, int col, Matrix &_matrix) {
+double RelaxationMethod::faultFunction(int row, int col, Matrix &_matrix) {
 	return (1 / sqrt(distance)) * (4 * _matrix.get(row, col) - _matrix.get(row - 1, col) - _matrix.get(row + 1, col) - _matrix.get(row, col - 1) - _matrix.get(row, col + 1));
 }
 
-double QuadGrid::residuum(int row, int col, Matrix &_matrix) {
+double RelaxationMethod::residuum(int row, int col, Matrix &_matrix) {
 	return faultFunction(row, col, _matrix) * (distance * distance) - (4 * _matrix.get(row, col) - _matrix.get(row - 1, col) - _matrix.get(row + 1, col) - _matrix.get(row, col - 1) - _matrix.get(row, col + 1));
 }

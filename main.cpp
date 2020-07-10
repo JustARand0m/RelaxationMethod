@@ -1,4 +1,4 @@
-#include "QuadGrid.h"
+#include "RelaxationMethod.h"
 
 int main(int argc, char **argv) {
 	int N = 20;
@@ -13,7 +13,7 @@ int main(int argc, char **argv) {
 			method = std::stoi(argv[2]);
 		}
 	}
-	QuadGrid grid = QuadGrid(N, PRECISION);
+	RelaxationMethod grid = RelaxationMethod(N, PRECISION);
 	long long time;
 	switch (method) {
 	case SEQ: 
