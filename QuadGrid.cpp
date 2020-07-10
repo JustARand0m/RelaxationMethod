@@ -184,7 +184,13 @@ void QuadGrid::partitionMPIScatter() {
 		// search the max out of all r values
 		double rMax = std::numeric_limits<double>::min();
 
-		if (world_rank == 0 && r <= limit && r != std::numeric_limits<double>::min()) {
+		if (world_rank == 0) {
+			for (auto value : rValues) {
+				rMax = std::max(rMax, value);
+			}
+		}
+
+		if (world_rank == 0 && rMax <= limit && rMax != std::numeric_limits<double>::min()) {
 			//matrix.printMatrix();
 			break;
 		}
