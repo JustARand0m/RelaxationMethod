@@ -7,7 +7,7 @@ QuadGrid::QuadGrid(int n, double _limit): dim(n+1), matrix(dim, dim) {
 	limit = _limit;
 }
 
-int QuadGrid::start(int edgeCase) {
+int QuadGrid::start(int edgeCase, int method) {
 	long long timeTaken = -1;
 	double r = 0;
 	Matrix m(5, 5);
@@ -29,7 +29,21 @@ int QuadGrid::start(int edgeCase) {
 			if (world_rank == MASTER_NODE) {
 				start = std::chrono::system_clock::now();
 			}
-			partitionMPIScatter();
+			if (method == SCATTER) {
+				if(world_rank == 0)
+					std::cout << "scatter used" << std::endl;
+				partitionMPIScatter();
+			}
+			else if(method == SEND_RECV) {
+				if(world_rank == 0)
+					std::cout << "send and recv used" << std::endl;
+				partitionMPI();
+			}
+			else {
+				if(world_rank == 0)
+					std::cout << "scatter used" << std::endl;
+				partitionMPIScatter();
+			}
 			if (world_rank == MASTER_NODE) {
 				auto end = std::chrono::system_clock::now();
 				timeTaken = (long long)(end - start).count();

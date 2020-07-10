@@ -16,11 +16,15 @@ const int MATRIX_BEFORE_CALC_TAG = 0;
 const int MATRIX_AFTER_CALC_TAG = 1;
 const int RESIDUUM_TAG = 2;
 
+#define SEQ 0
+#define SCATTER 1 
+#define SEND_RECV 2
+
 class QuadGrid
 {
 public:
 	QuadGrid(int n, double limit);
-	int start(int edgeCase);
+	int start(int edgeCase, int method = 0);
 	void initMPI(int argc, char **argv);
 	void writeToCSV(std::string name, long long time);
 	~QuadGrid();
