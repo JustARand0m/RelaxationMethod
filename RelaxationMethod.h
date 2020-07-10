@@ -7,6 +7,7 @@
 #include <chrono>
 #include <fstream>
 #include <string>
+#include <functional>
 
 #include "Matrix.h"
 
@@ -32,6 +33,7 @@ public:
 private:
 	int world_size;
 	int world_rank;
+	int edgeCase = 0;
 	bool init = false;
 	double limit;
 	int dim;

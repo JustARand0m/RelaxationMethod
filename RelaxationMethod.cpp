@@ -7,12 +7,13 @@ RelaxationMethod::RelaxationMethod(int n, double _limit): dim(n+1), matrix(dim, 
 	limit = _limit;
 }
 
-long long RelaxationMethod::start(int edgeCase, int method) {
+long long RelaxationMethod::start(int _edgeCase, int method) {
 	long long timeTaken = -1;
 	double r = 0;
 	Matrix m(5, 5);
+	edgeCase = _edgeCase;
 	switch (edgeCase) {
-	case 1:
+	case 0:
 		// initialize Grid
 		matrix[0] = 1.0;
 		matrix[dim * dim - 1] = 1.0;
@@ -59,7 +60,53 @@ long long RelaxationMethod::start(int edgeCase, int method) {
 			timeTaken = (long long)(end - start).count();
 		}
 		break;
-	case 2:
+	case 1:
+		matrix[0] = 1.0;
+		matrix[dim * dim - 1] = 1.0;
+		for (int i = 1; i < dim; i++) {
+			matrix[i] = matrix[i-1] - distance;
+			matrix[(dim - 1) * dim + (dim-1) - i] = matrix[(dim - 1) * dim + dim - i] - distance;
+			matrix[i * dim] = matrix[(i - 1) * dim] - distance;
+			int sec = (dim - i) * dim + dim - 1;
+			int first = (dim - 1 - i) * dim + dim - 1;
+			matrix[first] = matrix[sec] - distance;
+		}
+
+		if (init) {
+			std::chrono::system_clock::time_point start;
+			if (world_rank == MASTER_NODE) {
+				start = std::chrono::system_clock::now();
+			}
+			if (method == SCATTER) {
+				if(world_rank == 0)
+					std::cout << "scatter used" << std::endl;
+				partitionMPIScatter();
+			}
+			else if(method == SEND_RECV) {
+				if(world_rank == 0)
+					std::cout << "send and recv used" << std::endl;
+				partitionMPI();
+			}
+			else {
+				if(world_rank == 0)
+					std::cout << "scatter used" << std::endl;
+				partitionMPIScatter();
+			}
+			if (world_rank == MASTER_NODE) {
+				auto end = std::chrono::system_clock::now();
+				timeTaken = (long long)(end - start).count();
+			}
+		}
+		else {
+			auto start = std::chrono::system_clock::now();
+			do {
+				r = calcualteCell(1, dim - 2, matrix);
+			} while (r >= limit);
+
+			auto end = std::chrono::system_clock::now();
+			timeTaken = (long long)(end - start).count();
+		}
+
 		break;
 	}
 	return timeTaken;
@@ -190,7 +237,7 @@ void RelaxationMethod::partitionMPIScatter() {
 		}
 
 		if (world_rank == 0 && rMax <= limit && rMax != std::numeric_limits<double>::min()) {
-			//matrix.printMatrix();
+			matrix.printMatrix();
 			break;
 		}
 	}
@@ -325,7 +372,11 @@ void RelaxationMethod::startEndRowsGather(int &startRow, int &endRow, int rows, 
 }
 
 double RelaxationMethod::faultFunction(int row, int col, Matrix &_matrix) {
-	return (1 / sqrt(distance)) * (4 * _matrix.get(row, col) - _matrix.get(row - 1, col) - _matrix.get(row + 1, col) - _matrix.get(row, col - 1) - _matrix.get(row, col + 1));
+	if (edgeCase == 1) {
+		const double PI = 3.1415926535897932384626433832795028841971693993751058209;
+		return 2 * (PI * PI) * std::sin(PI * row) * std::sin(PI * col);
+	} 
+	return 0;
 }
 
 double RelaxationMethod::residuum(int row, int col, Matrix &_matrix) {
