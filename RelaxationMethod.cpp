@@ -12,6 +12,13 @@ long long RelaxationMethod::start(int _edgeCase, int method) {
 	double r = 0;
 	Matrix m(5, 5);
 	edgeCase = _edgeCase;
+	if (world_rank == 0) {
+		std::cout << "N was set to " << dim - 1 << std::endl;
+		std::cout << "method was set to " << method << std::endl;
+		std::cout << "precition was set to " << limit << std::endl;
+		std::cout << "edge case was set to " << edgeCase << std::endl;
+		std::cout << "processes used " << world_size << std::endl;
+	}
 	switch (edgeCase) {
 	case 0:
 		// initialize Grid
@@ -210,6 +217,8 @@ void RelaxationMethod::partitionMPIScatter() {
 
 	int start = 1, end = endRow - startRow - 1;
 
+	int done = 0;
+	int loopcount = 0;
 	while (true) {
 		Matrix subMatrix = matrix.getSubMatrix(startRow, endRow);
 
@@ -230,15 +239,30 @@ void RelaxationMethod::partitionMPIScatter() {
 		// search the max out of all r values
 		double rMax = std::numeric_limits<double>::min();
 
+	
 		if (world_rank == 0) {
 			for (auto value : rValues) {
 				rMax = std::max(rMax, value);
 			}
 		}
 
+		if (loopcount >= 100 && world_rank == 0) {
+			std::cout << rMax << std::endl;
+			loopcount = 0;
+		}
+		loopcount++;
+
+
+
 		if (world_rank == 0 && rMax <= limit && rMax != std::numeric_limits<double>::min()) {
-			matrix.printMatrix();
-			break;
+			std::cout << "limit reached" << std::endl;
+			//matrix.printMatrix();
+			done = 1;
+		}
+		MPI_Bcast(&done, 1, MPI_INT, MASTER_NODE, MPI_COMM_WORLD);
+		if (done == 1) {
+			std::cout << "Process: " << world_rank << " is done!"<< std::endl;
+			return;
 		}
 	}
 }
@@ -300,7 +324,6 @@ void RelaxationMethod::initMPI(int argc, char **argv) {
 RelaxationMethod::~RelaxationMethod()
 {
 	if (init) {
-		MPI_Abort(MPI_COMM_WORLD, 0);
 		MPI_Finalize();
 	}
 }
