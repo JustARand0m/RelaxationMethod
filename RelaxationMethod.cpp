@@ -54,17 +54,20 @@ long long RelaxationMethod::start(int _edgeCase, int method) {
 			}
 			if (world_rank == MASTER_NODE) {
 				auto end = std::chrono::system_clock::now();
-				timeTaken = (long long)(end - start).count();
+				timeTaken = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 			}
 		}
 		else {
 			auto start = std::chrono::system_clock::now();
+			int loopcount = 0;
 			do {
+				loopcount++;
 				r = calcualteCell(1, dim - 2, matrix);
 			} while (r >= limit);
+			std::cout << "looped for " << loopcount << std::endl;
 
 			auto end = std::chrono::system_clock::now();
-			timeTaken = (long long)(end - start).count();
+			timeTaken = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 		}
 		break;
 	case 1:
@@ -101,17 +104,20 @@ long long RelaxationMethod::start(int _edgeCase, int method) {
 			}
 			if (world_rank == MASTER_NODE) {
 				auto end = std::chrono::system_clock::now();
-				timeTaken = (long long)(end - start).count();
+				timeTaken = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 			}
 		}
 		else {
 			auto start = std::chrono::system_clock::now();
+			int loopcount = 0;
 			do {
+				loopcount++;
 				r = calcualteCell(1, dim - 2, matrix);
 			} while (r >= limit);
+			std::cout << "looped for " << loopcount << std::endl;
 
 			auto end = std::chrono::system_clock::now();
-			timeTaken = (long long)(end - start).count();
+			timeTaken = (long long)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
 		}
 
 		break;
@@ -246,15 +252,10 @@ void RelaxationMethod::partitionMPIScatter() {
 			}
 		}
 
-		if (loopcount >= 100 && world_rank == 0) {
-			std::cout << rMax << std::endl;
-			loopcount = 0;
-		}
 		loopcount++;
 
-
-
 		if (world_rank == 0 && rMax <= limit && rMax != std::numeric_limits<double>::min()) {
+			std::cout << "loopcount: " << loopcount << std::endl;
 			std::cout << "limit reached" << std::endl;
 			//matrix.printMatrix();
 			done = 1;

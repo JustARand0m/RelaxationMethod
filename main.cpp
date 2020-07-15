@@ -20,13 +20,14 @@ int main(int argc, char **argv) {
 			edgeCase = std::stoi(argv[4]);
 		}
 	}
+	auto programm_start = std::chrono::system_clock::now();
 	RelaxationMethod grid = RelaxationMethod(N, PRECISION);
 	long long time;
 	switch (method) {
 	case SEQ: 
 		std::cout << "Sequential used" << std::endl;
 		time = grid.start(edgeCase);
-		grid.writeToCSV("noMPI_edgeCase" + std::to_string(edgeCase) + "_"  + std::to_string(N), time);
+		//grid.writeToCSV("noMPI_edgeCase" + std::to_string(edgeCase) + "_"  + std::to_string(N), time);
 		std::cout << "time taken with no MPI: " << time << std::endl;
 		break;
 
@@ -45,7 +46,7 @@ int main(int argc, char **argv) {
 		if (time != -1) {
 			std::cout << "time taken with MPI: " << time << std::endl;
 		}
-		grid.writeToCSV("withMPI_send_recv_edgeCase" + std::to_string(edgeCase) + "_" + std::to_string(N), time);
+		//grid.writeToCSV("withMPI_send_recv_edgeCase" + std::to_string(edgeCase) + "_" + std::to_string(N), time);
 		break;
 
 	default:
@@ -54,9 +55,11 @@ int main(int argc, char **argv) {
 		if (time != -1) {
 			std::cout << "time taken with MPI: " << time << std::endl;
 		}
-		grid.writeToCSV("withMPI_scatter_edgeCase" + std::to_string(edgeCase) + "_" + std::to_string(N), time);
+		//grid.writeToCSV("withMPI_scatter_edgeCase" + std::to_string(edgeCase) + "_" + std::to_string(N), time);
 		break;
 	}
+	auto programm_end = std::chrono::system_clock::now();
+	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(programm_end - programm_start).count() << " is the complete time of the programm" << std::endl;
 	
 	return 0;
 }
